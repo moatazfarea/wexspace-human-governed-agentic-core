@@ -1,0 +1,9 @@
+{
+  "work_id": "AFH-DEMO-001",
+  "objective": "Reconcile the synthetic receiving evidence and prepare a human review package.",
+  "inputs": {
+    "request_id": "REQ-AFH-001",
+    "expected_quantity": 120,
+    "observed_quantity": 118
+  }
+}
