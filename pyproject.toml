@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wexspace-human-governed-agentic-core"
+version = "0.1.0"
+description = "Human-governed Strands execution core with durable evidence, exact resume, and root-corrective recovery."
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "WEXSPACE AI"}]
+dependencies = [
+  "strands-agents[bedrock]>=1.54.0,<2.0.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=9,<10"]
+
+[project.scripts]
+wexspace-core = "wexspace_human_governed_core.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
