@@ -7,3 +7,13 @@ __pycache__/
 *.sqlite*
 private_evidence/*
 !private_evidence/.gitkeep
+
+# Local runtime, optional environments, and generated qualification output
+.fleet-*/
+.web-demo-state/
+.wexspace-demo/
+.demo-state/
+.ci-demo/
+demo-output/
+display-evidence/
+replay-evidence/

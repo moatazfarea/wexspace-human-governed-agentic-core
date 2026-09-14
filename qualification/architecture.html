@@ -1,0 +1,40 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>WEXSPACE AFH architecture</title><style>
+@page{size:A4;margin:18mm}body{font-family:Arial,sans-serif;color:#15283d;font-size:11pt;line-height:1.45}
+h1{font-size:24pt;margin-bottom:8px}h2{font-size:14pt;margin-top:20px}.label{color:#456276;font-size:10pt}
+.flow{display:grid;grid-template-columns:1fr 1fr;gap:12px}.box{border:1.5px solid #55798a;border-radius:8px;padding:12px}
+.wide{grid-column:1/3;background:#edf7f3}code{font-size:9pt;word-break:break-all}
+table{width:100%;border-collapse:collapse}td,th{padding:8px;text-align:left;border-bottom:1px solid #ccd6df;font-size:10pt}
+footer{font-size:9pt;color:#456276;margin-top:20px}ul{padding-left:20px}.page{break-before:page}
+</style><h1>WEXSPACE AI</h1><div class="label">Agents for Humans · Professional Agents · Implementation architecture</div>
+<p>A governed receiving-evidence workflow. Synthetic inputs: 120 expected units, 118 observed units. Deterministic reconciliation produces a discrepancy of −2 units and a human review package.</p>
+<div class="flow">
+<div class="box wide"><b>1 · Request compiler</b><br>Objective and required inputs form the execution contract.</div>
+<div class="box"><b>2 · Strands interface</b><br>Native SDK tools with ordered dispatch, saved named results, and a configured Bedrock route.</div>
+<div class="box"><b>Judge UI / API</b><br>Loopback Python server calls the same deterministic core. Synthetic demo mode performs no model inference.</div>
+<div class="box wide"><b>3 · Governed deterministic runtime</b><br>inspect_request → reconcile_evidence → prepare_review_package</div>
+<div class="box"><b>4 · SQLite state</b><br>work_id, node outputs, durable cursor, and unique effect keys.</div>
+<div class="box"><b>Evidence ledger</b><br>Canonical JSONL records with SHA-256 links; exported decision and evidence receipts.</div>
+<div class="box wide"><b>5 · Human review boundary</b><br>State becomes HUMAN_REVIEW. Agent tools and the demo API expose no approval endpoint.</div>
+</div>
+<h2>Interruption and continuation</h2>
+<p>After inspection saves cursor 1, the qualification process kills the Python server with SIGKILL. A different Python process opens the same state directory. The browser reconnects to the same work ID, resumes remaining safe tools, and reads the review receipt. Each recorded tool effect occurs once.</p>
+<h2>Execution surfaces</h2>
+<table><tr><th>Surface</th><th>Current scope</th></tr>
+<tr><td>CLI + Python core</td><td>Deterministic workflow, durable state, review export.</td></tr>
+<tr><td>Strands SDK</td><td>Real direct SDK tool dispatch qualified separately; model inference is a separate gate.</td></tr>
+<tr><td>Web UI</td><td>Local synthetic product demo; no public multi-user hosting claimed.</td></tr>
+<tr><td>AgentCore bridge</td><td>Source integration only; deployed runtime and cloud invocation remain unverified.</td></tr></table>
+<div class="page"></div><h2>Trust boundaries and practical limits</h2>
+<ul><li>Inputs in the public demonstration are synthetic. No owner credentials or employer data are displayed.</li>
+<li>Persistent state belongs to the runtime. Model text does not override the saved cursor or completed node result.</li>
+<li>The Web server binds to loopback, validates its Host header, and rejects cross-origin browser mutations.</li>
+<li>Production deployment needs a verified cloud identity, authorized resources, authenticated user access, and an appropriate durable state service.</li>
+<li>The process test kills after cursor publication. It does not prove atomicity inside an external distributed side effect or concurrent multi-writer execution.</li>
+<li>Hash-linked evidence establishes integrity within the recorded chain; it is not independent third-party attestation.</li>
+<li>The recorded display segment is continuous X11 capture. It is a qualification segment, not the final competition video.</li></ul>
+<h2>Public reproducibility</h2>
+<p>The Public source replay workflow installs a fresh Python environment, checks dependencies, runs deterministic, SDK-tool and Web/API tests, executes the README workflow, and verifies a real process interruption.</p>
+<p>The Browser and real display qualification workflow starts the actual application, drives Chromium, records the display with FFmpeg, and stores the raw segment, manifest, receipt, and this architecture PDF in a separate evidence branch.</p>
+<p><b>Source commit</b><br><code>{{SOURCE_COMMIT}}</code><br><b>Browser execution run</b><br><code>{{RUN_ID}}</code></p>
+<p><a href="https://github.com/moatazfarea/wexspace-human-governed-agentic-core">Public source repository</a></p>
+<footer>Original WEXSPACE implementation · MIT license · Ongoing WEXSPACE program and competition-specific changes are disclosed in the project description.</footer></html>

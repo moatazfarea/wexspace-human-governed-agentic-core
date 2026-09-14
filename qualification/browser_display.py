@@ -11,7 +11,7 @@ import tempfile
 import time
 from urllib.request import urlopen
 
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import expect, sync_playwright
 
 
 OUT = Path("display-evidence")
@@ -78,7 +78,7 @@ try:
             page.locator("#label").press_sequentially("Synthetic receiving review", delay=65)
             move_native_mouse(page, "#start")
             page.locator("#start").click()
-            page.wait_for_function("document.getElementById('cursor').textContent.includes('1 / 3')")
+            expect(page.locator("#cursor")).to_have_text("Durable cursor: 1 / 3")
             work_id = page.locator("#work").inner_text()
             manifest["work_id"] = work_id
             manifest["checks"]["browser_create_and_read"] = "PASS"
@@ -90,7 +90,7 @@ try:
             assert server.returncode == -signal.SIGKILL
             move_native_mouse(page, "#refresh")
             page.locator("#refresh").click()
-            page.wait_for_function("document.getElementById('status').textContent.includes('Service unavailable')")
+            expect(page.locator("#status")).to_contain_text("Service unavailable")
             time.sleep(2)
 
             server, restarted_port = start_server(Path(directory), port)
@@ -98,16 +98,17 @@ try:
             manifest["process_b"] = server.pid
             move_native_mouse(page, "#refresh")
             page.locator("#refresh").click()
-            page.wait_for_function("document.getElementById('cursor').textContent.includes('1 / 3') && !document.getElementById('resume').disabled")
+            expect(page.locator("#cursor")).to_have_text("Durable cursor: 1 / 3")
+            expect(page.locator("#resume")).to_be_enabled()
             assert page.locator("#work").inner_text() == work_id
             manifest["checks"]["fresh_server_state_readback"] = "PASS"
             time.sleep(1.5)
             move_native_mouse(page, "#resume")
             page.locator("#resume").click()
-            page.wait_for_function("document.getElementById('status').textContent.includes('HUMAN_REVIEW')")
+            expect(page.locator("#status")).to_contain_text("HUMAN_REVIEW")
             move_native_mouse(page, "#receipt")
             page.locator("#receipt").click()
-            page.wait_for_function("document.getElementById('evidence').textContent.includes('decision_sha256')")
+            expect(page.locator("#evidence")).to_contain_text("decision_sha256")
             receipt = json.loads(page.locator("#evidence").inner_text())
             assert receipt["work_id"] == work_id
             assert receipt["effect_counts"] == {"inspect_request": 1, "reconcile_evidence": 1, "prepare_review_package": 1}
@@ -127,6 +128,14 @@ try:
             recorder.communicate(b"q\n", timeout=20)
             recorder = None
             browser.close()
+            pdf_browser = playwright.chromium.launch(headless=True)
+            architecture_page = pdf_browser.new_page()
+            architecture_html = Path("qualification/architecture.html").read_text()
+            architecture_html = architecture_html.replace("{{SOURCE_COMMIT}}", os.environ.get("GITHUB_SHA", "local"))
+            architecture_html = architecture_html.replace("{{RUN_ID}}", os.environ.get("GITHUB_RUN_ID", "local"))
+            architecture_page.set_content(architecture_html)
+            architecture_page.pdf(path=str(OUT / "architecture.pdf"), format="A4", print_background=True)
+            pdf_browser.close()
 finally:
     if recorder is not None:
         recorder.communicate(b"q\n", timeout=20)
@@ -143,7 +152,7 @@ finally:
             "-of", "json", str(movie)], text=True))
         manifest["media"] = probe
     manifest["sha256"] = {
-        name: digest(OUT / name) for name in ["segment.mp4", "preview.png", "receipt.json"]
+        name: digest(OUT / name) for name in ["segment.mp4", "preview.png", "receipt.json", "architecture.pdf"]
         if (OUT / name).exists()
     }
     (OUT / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")

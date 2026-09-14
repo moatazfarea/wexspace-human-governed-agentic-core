@@ -49,7 +49,7 @@ if current:
 tree = api(f"git/commits/{parent}")["tree"]["sha"]
 entries = []
 total = 0
-for name in ["segment.mp4", "preview.png", "receipt.json", "manifest.json"]:
+for name in ["segment.mp4", "preview.png", "receipt.json", "architecture.pdf", "manifest.json"]:
     path = root / name
     if not path.exists():
         continue
