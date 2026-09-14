@@ -2,6 +2,7 @@ name: Public source replay
 on:
   push:
     branches: [main, afh-public-replay-20260914]
+    paths: ['src/**', 'tests/**', 'pyproject.toml', 'README.md', 'scripts/verify_process_resume.py', '.github/workflows/public-replay.yml']
   pull_request:
   workflow_dispatch:
 

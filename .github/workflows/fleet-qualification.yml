@@ -1,0 +1,43 @@
+name: Isolated fleet qualification
+on:
+  push:
+    branches: [afh-public-replay-20260914]
+    paths: ['qualification/**', '.github/workflows/fleet-qualification.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  langgraph:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: src
+      LANGCHAIN_TRACING_V2: "false"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Install isolated official LangGraph packages
+        run: |
+          python3 -m venv .fleet-langgraph
+          .fleet-langgraph/bin/python -m pip install --disable-pip-version-check langgraph langgraph-checkpoint-sqlite
+          .fleet-langgraph/bin/python -m pip check
+      - name: Execute tools and resume from SQLite in a fresh process
+        run: .fleet-langgraph/bin/python qualification/langgraph_resume.py
+  mcp-servers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Install official reference servers in isolated environments
+        run: |
+          python3 -m venv .fleet-mcp
+          .fleet-mcp/bin/python -m pip install --disable-pip-version-check 'mcp-server-git>=2025.12.18'
+          .fleet-mcp/bin/python -m pip check
+          npm --prefix .fleet-node install --no-audit --no-fund --ignore-scripts @modelcontextprotocol/server-filesystem
+      - name: Start servers, enumerate tools, and execute synthetic calls
+        run: .fleet-mcp/bin/python qualification/mcp_servers.py
