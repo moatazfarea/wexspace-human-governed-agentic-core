@@ -1,0 +1,32 @@
+{
+  "capture": "FFMPEG_X11GRAB_CONTINUOUS_DISPLAY",
+  "checks": {},
+  "ended_at_epoch": 1789396803.7839468,
+  "final_submission_video": false,
+  "master_kind": "RAW_UNEDITED_QUALIFICATION_SEGMENT",
+  "media": {
+    "format": {
+      "duration": "4.400000"
+    },
+    "programs": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "height": 720,
+        "nb_frames": "110",
+        "r_frame_rate": "25/1",
+        "width": 1280
+      }
+    ]
+  },
+  "model_inference": false,
+  "no_owner_credentials_present_on_display": true,
+  "process_a": 4341,
+  "run_id": "34856949527",
+  "sha256": {
+    "segment.mp4": "09c30084a67a621db24ae316e2da7f7b94a7bea4eeaa4791d40a6eedf826580f"
+  },
+  "source_commit": "2fb3cf30cfa8d503cc98d157733f0da133ae513f",
+  "started_at_epoch": 1789396795.2525096,
+  "state": "INCOMPLETE"
+}
