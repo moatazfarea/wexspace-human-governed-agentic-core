@@ -1,0 +1,35 @@
+name: Browser and real display qualification
+on:
+  push:
+    branches: [afh-public-replay-20260914]
+    paths: ['src/wexspace_human_governed_core/webapp.py', 'qualification/browser_display.py', 'qualification/upload_display_evidence.py', '.github/workflows/browser-display.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser-display:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      AWS_EC2_METADATA_DISABLED: "true"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Install isolated browser runtime
+        run: |
+          python3 -m venv .fleet-browser
+          .fleet-browser/bin/python -m pip install --disable-pip-version-check -e . playwright
+          .fleet-browser/bin/python -m pip check
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb xdotool ffmpeg
+          .fleet-browser/bin/python -m playwright install --with-deps chromium
+      - name: Test real browser and record continuous X11 display
+        run: xvfb-run -a -s "-screen 0 1280x720x24 -nolisten tcp" .fleet-browser/bin/python qualification/browser_display.py
+      - name: Preserve raw segment and verify remote manifest
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 qualification/upload_display_evidence.py

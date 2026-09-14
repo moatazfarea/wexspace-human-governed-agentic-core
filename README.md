@@ -58,6 +58,20 @@ wexspace-core --state-dir .demo-state status AFH-DEMO-001
 wexspace-core --state-dir .demo-state export AFH-DEMO-001 demo-output
 ```
 
+## Local judge Web UI
+
+After installation:
+
+```bash
+python -m wexspace_human_governed_core.webapp --state-dir .web-demo-state --port 8080
+```
+
+Open http://127.0.0.1:8080. Start a synthetic receiving case, reconnect to saved work after a service restart, resume safe tools, and read the evidence receipt.
+
+The server binds only to loopback, rejects cross-origin browser mutations, and exposes no approval endpoint. This mode uses deterministic tools without cloud model inference. It is a local judge demo, not a deployed multi-user service.
+
+The **Browser and real display qualification** workflow records actual X11 display activity with FFmpeg while it kills and restarts the Python server. Unedited qualification segments and their hashes are preserved on the separate `afh-display-evidence-20260914` branch. These segments are not the final competition video.
+
 ## Live Strands / Bedrock qualification
 
 After discovering a model and region that are actually available to the AWS account:
