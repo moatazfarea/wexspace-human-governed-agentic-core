@@ -1,0 +1,43 @@
+name: Public source replay
+on:
+  push:
+    branches: [main, afh-public-replay-20260914]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  clean-replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      AWS_EC2_METADATA_DISABLED: "true"
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Install from public source in a fresh environment
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --disable-pip-version-check -e '.[test]'
+          .venv/bin/python -m pip check
+          .venv/bin/python -m pip list --format=json
+      - name: Run real pytest suites
+        run: .venv/bin/python -m pytest -q --junitxml=pytest-results.xml
+      - name: Verify README synthetic workflow
+        run: |
+          .venv/bin/wexspace-core --state-dir .ci-demo create AFH-DEMO-001 "Reconcile synthetic receiving evidence." '{"request_id":"REQ-AFH-001","expected_quantity":120,"observed_quantity":118}'
+          .venv/bin/wexspace-core --state-dir .ci-demo run AFH-DEMO-001
+          .venv/bin/wexspace-core --state-dir .ci-demo status AFH-DEMO-001
+          .venv/bin/wexspace-core --state-dir .ci-demo export AFH-DEMO-001 demo-output
+      - name: Kill process and resume from durable state
+        run: .venv/bin/python scripts/verify_process_resume.py replay-evidence
+      - name: Record source and evidence hashes
+        run: |
+          git rev-parse HEAD
+          sha256sum replay-evidence/*.json pytest-results.xml
+          cat replay-evidence/receipt.json >> "$GITHUB_STEP_SUMMARY"
