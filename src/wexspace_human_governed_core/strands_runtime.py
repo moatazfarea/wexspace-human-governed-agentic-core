@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from .runtime import GovernedRuntime
+from .state import NODE_ORDER
 
 
 class ProviderAuthRequired(RuntimeError):
@@ -29,44 +30,53 @@ def build_bedrock_model():
 def build_strands_agent(runtime: GovernedRuntime, work_id: str, model=None):
     try:
         from strands import Agent, tool
+        from strands.tools.executors import SequentialToolExecutor
     except Exception as exc:  # pragma: no cover
         raise RuntimeError("strands-agents is not installed") from exc
 
     if model is None:
         model = build_bedrock_model()
 
+    def run_named_node(node: str) -> dict[str, Any]:
+        # A repeated model request must return its own durable result. It must
+        # never consume the next cursor merely because another node is ready.
+        before = runtime.repo.work(work_id)["cursor"]
+        saved = runtime.repo.node(work_id, node)
+        reused = saved["state"] == "PASS"
+        if not reused:
+            expected_cursor = NODE_ORDER.index(node)
+            if before != expected_cursor:
+                raise RuntimeError(f"{node} requires preceding workflow nodes to complete first")
+            result = runtime.run_deterministic(work_id, stop_after=1)
+            saved = runtime.repo.node(work_id, node)
+        else:
+            result = {}
+        after = runtime.repo.work(work_id)
+        return {
+            "cursor_before": before,
+            "cursor_after": after["cursor"],
+            "node": node,
+            "node_state": saved["state"],
+            "work_state": result.get("state", after["state"]),
+            "output": saved["output"] if reused or saved["state"] == "PASS" else result.get("payload"),
+            "reused": reused,
+        }
+
     @tool
     def inspect_request_tool() -> dict[str, Any]:
-        """Inspect the professional request and persist the deterministic inspection result."""
-        before = runtime.repo.work(work_id)["cursor"]
-        runtime.run_deterministic(work_id, stop_after=1)
-        after = runtime.repo.work(work_id)["cursor"]
-        return {"cursor_before": before, "cursor_after": after, "node": "inspect_request"}
+        """Inspect inputs; return the saved inspection on retry without advancing other nodes."""
+        return run_named_node("inspect_request")
 
     @tool
     def reconcile_evidence_tool() -> dict[str, Any]:
-        """Run deterministic evidence reconciliation and persist the result."""
-        work = runtime.repo.work(work_id)
-        if work["cursor"] < 1:
-            raise RuntimeError("inspect_request must complete first")
-        before = work["cursor"]
-        runtime.run_deterministic(work_id, stop_after=1)
-        after = runtime.repo.work(work_id)["cursor"]
-        return {"cursor_before": before, "cursor_after": after, "node": "reconcile_evidence"}
+        """Reconcile after inspection; return the saved reconciliation on retry."""
+        return run_named_node("reconcile_evidence")
 
     @tool
     def prepare_review_package_tool() -> dict[str, Any]:
-        """Prepare the evidence-backed package and stop at the human review boundary."""
-        work = runtime.repo.work(work_id)
-        if work["cursor"] < 2:
-            raise RuntimeError("reconciliation must complete first")
-        before = work["cursor"]
-        runtime.run_deterministic(work_id, stop_after=1)
-        after = runtime.repo.work(work_id)["cursor"]
+        """Prepare the review package after reconciliation and stop at human authority."""
         return {
-            "cursor_before": before,
-            "cursor_after": after,
-            "node": "prepare_review_package",
+            **run_named_node("prepare_review_package"),
             "human_review_required": True,
             "auto_approval_allowed": False,
         }
@@ -84,6 +94,7 @@ Stop once HUMAN_REVIEW is reached and report the evidence-backed review state.
     return Agent(
         model=model,
         tools=[inspect_request_tool, reconcile_evidence_tool, prepare_review_package_tool],
+        tool_executor=SequentialToolExecutor(),
         system_prompt=system_prompt,
     )
 

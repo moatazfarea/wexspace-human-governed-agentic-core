@@ -27,7 +27,7 @@ jobs:
           .venv/bin/python -m pip check
           .venv/bin/python -m pip list --format=json
       - name: Run real pytest suites
-        run: .venv/bin/python -m pytest -q --junitxml=pytest-results.xml
+        run: .venv/bin/python -m pytest -q --capture=tee-sys --junitxml=pytest-results.xml
       - name: Verify README synthetic workflow
         run: |
           .venv/bin/wexspace-core --state-dir .ci-demo create AFH-DEMO-001 "Reconcile synthetic receiving evidence." '{"request_id":"REQ-AFH-001","expected_quantity":120,"observed_quantity":118}'
