@@ -3,22 +3,110 @@
   "source_origin": "CLEAN_NEW_PROJECT",
   "copied_prior_code": false,
   "files": [
-    {"path": ".gitignore", "size": 111, "sha256": "21bed0469017b9f94ed21fbd7b0663cc417ea314b8d1d61b178f651ebdfe8acb"},
-    {"path": "LICENSE", "size": 1068, "sha256": "773dfd0400847c9cba0d4c9c44a18a0774bfd25dc6b882ac8c80d975481da3ff"},
-    {"path": "README.md", "size": 4129, "sha256": "2f3258a1460cbe543c99da857ad5cb4d0d7182b83a49ab819a3c43874c1ddc90"},
-    {"path": "docs/architecture.md", "size": 683, "sha256": "734dbe205a1639cae1e0a779d0ccd458bb198c03b07c0543e7c43270855e7d17"},
-    {"path": "examples/synthetic_case/request.json", "size": 240, "sha256": "088d1da9c61f9567c5cbfe4c23d61857ef791f9e835092948bd1cde3a18606b0"},
-    {"path": "private_evidence/.gitkeep", "size": 0, "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
-    {"path": "pyproject.toml", "size": 707, "sha256": "dbe2435bd3bf55f5d30a34e9adaf614cc87178bcffd4f437dafd5eb94d95b3f0"},
-    {"path": "src/wexspace_human_governed_core/__init__.py", "size": 74, "sha256": "7313b2f586d0fdba31f2e4a7d04c6f5725b32cd090f4bbfac431ce65aaef74ea"},
-    {"path": "src/wexspace_human_governed_core/cli.py", "size": 2194, "sha256": "ee7c9e1a3344ba8a96189f38205761aac61aedac64809775c98237647cea0ea2"},
-    {"path": "src/wexspace_human_governed_core/compiler.py", "size": 589, "sha256": "f053621410a04894f652676bbc028a8c254b0f2731960ab532956efa631bc0b6"},
-    {"path": "src/wexspace_human_governed_core/evidence.py", "size": 1321, "sha256": "abe58b7105e857bad0c981c068c93baade54c8cde9ba2e5e3220f247da8fa993"},
-    {"path": "src/wexspace_human_governed_core/models.py", "size": 926, "sha256": "bec6968c7534f969c3c3c1dd07bb6daf5dfc45f61342214cf1f62116f813ad97"},
-    {"path": "src/wexspace_human_governed_core/runtime.py", "size": 3706, "sha256": "d7cc11e915ea7e0635859f29efb686a30a69fdfbf4df6c0586eea93260d97e64"},
-    {"path": "src/wexspace_human_governed_core/state.py", "size": 6607, "sha256": "dc6ff4ae988e62173f54d057850db0c3fdfcd18749fa66a825f36ca95d17e8b9"},
-    {"path": "src/wexspace_human_governed_core/strands_runtime.py", "size": 3921, "sha256": "e48529e945dacc1554af5e1f7ccfc443720187653d88f04b79686c1b8b357b86"},
-    {"path": "src/wexspace_human_governed_core/tools.py", "size": 1356, "sha256": "d69421b1b616d5b31994df039d79575d63f161d7d13ee7e860b44bc1fe8c2fc3"},
-    {"path": "tests/test_core.py", "size": 3885, "sha256": "b07a8df201ceeab1d4028ee9ed23f9a42f6a61a61fc6b87759c01bdef0a2484e"}
+    {
+      "path": ".gitignore",
+      "size": 111,
+      "sha256": "21bed0469017b9f94ed21fbd7b0663cc417ea314b8d1d61b178f651ebdfe8acb"
+    },
+    {
+      "path": "LICENSE",
+      "size": 1068,
+      "sha256": "773dfd0400847c9cba0d4c9c44a18a0774bfd25dc6b882ac8c80d975481da3ff"
+    },
+    {
+      "path": "README.md",
+      "size": 4129,
+      "sha256": "2f3258a1460cbe543c99da857ad5cb4d0d7182b83a49ab819a3c43874c1ddc90"
+    },
+    {
+      "path": "docs/architecture.md",
+      "size": 683,
+      "sha256": "734dbe205a1639cae1e0a779d0ccd458bb198c03b07c0543e7c43270855e7d17"
+    },
+    {
+      "path": "examples/synthetic_case/request.json",
+      "size": 240,
+      "sha256": "088d1da9c61f9567c5cbfe4c23d61857ef791f9e835092948bd1cde3a18606b0"
+    },
+    {
+      "path": "private_evidence/.gitkeep",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "pyproject.toml",
+      "size": 707,
+      "sha256": "dbe2435bd3bf55f5d30a34e9adaf614cc87178bcffd4f437dafd5eb94d95b3f0"
+    },
+    {
+      "path": "src/wexspace_human_governed_core/__init__.py",
+      "size": 74,
+      "sha256": "7313b2f586d0fdba31f2e4a7d04c6f5725b32cd090f4bbfac431ce65aaef74ea"
+    },
+    {
+      "path": "src/wexspace_human_governed_core/agentcore_runtime.py",
+      "size": 5804,
+      "sha256": "ae078789a53d4c49c824798e66baf8f897862f838576fbc78ab77ee8e603cedc"
+    },
+    {
+      "path": "src/wexspace_human_governed_core/cli.py",
+      "size": 2194,
+      "sha256": "ee7c9e1a3344ba8a96189f38205761aac61aedac64809775c98237647cea0ea2"
+    },
+    {
+      "path": "src/wexspace_human_governed_core/compiler.py",
+      "size": 589,
+      "sha256": "f053621410a04894f652676bbc028a8c254b0f2731960ab532956efa631bc0b6"
+    },
+    {
+      "path": "src/wexspace_human_governed_core/evidence.py",
+      "size": 1321,
+      "sha256": "abe58b7105e857bad0c981c068c93baade54c8cde9ba2e5e3220f247da8fa993"
+    },
+    {
+      "path": "src/wexspace_human_governed_core/models.py",
+      "size": 926,
+      "sha256": "bec6968c7534f969c3c3c1dd07bb6daf5dfc45f61342214cf1f62116f813ad97"
+    },
+    {
+      "path": "src/wexspace_human_governed_core/runtime.py",
+      "size": 3706,
+      "sha256": "d7cc11e915ea7e0635859f29efb686a30a69fdfbf4df6c0586eea93260d97e64"
+    },
+    {
+      "path": "src/wexspace_human_governed_core/state.py",
+      "size": 6607,
+      "sha256": "dc6ff4ae988e62173f54d057850db0c3fdfcd18749fa66a825f36ca95d17e8b9"
+    },
+    {
+      "path": "src/wexspace_human_governed_core/strands_runtime.py",
+      "size": 3921,
+      "sha256": "e48529e945dacc1554af5e1f7ccfc443720187653d88f04b79686c1b8b357b86"
+    },
+    {
+      "path": "src/wexspace_human_governed_core/tools.py",
+      "size": 1356,
+      "sha256": "d69421b1b616d5b31994df039d79575d63f161d7d13ee7e860b44bc1fe8c2fc3"
+    },
+    {
+      "path": "test_runner.py",
+      "size": 1658,
+      "sha256": "089da5a2e837fade64dabade876f4debf38cf39080bb2df1b7cfa72cefa46bba"
+    },
+    {
+      "path": "tests/test_agentcore_runtime.py",
+      "size": 2587,
+      "sha256": "383a57ddeafcde3c923441cf27e0ea449e5627f78b9bf64136c3950f7f729343"
+    },
+    {
+      "path": "tests/test_core.py",
+      "size": 3885,
+      "sha256": "b07a8df201ceeab1d4028ee9ed23f9a42f6a61a61fc6b87759c01bdef0a2484e"
+    },
+    {
+      "path": "tests/test_flagship_exact_resume.py",
+      "size": 3815,
+      "sha256": "62c7c1972b17c65c6229e03e140adb20dac35857b714f6f94e6e208ceac1bf46"
+    }
   ]
 }
