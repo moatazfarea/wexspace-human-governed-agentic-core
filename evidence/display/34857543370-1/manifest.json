@@ -1,0 +1,49 @@
+{
+  "browser_version": "151.0.7922.34",
+  "capture": "FFMPEG_X11GRAB_CONTINUOUS_DISPLAY",
+  "checks": {
+    "browser_create_and_read": "PASS",
+    "exact_resume": "PASS",
+    "fresh_server_state_readback": "PASS",
+    "human_gate": "PASS",
+    "no_duplicate_effect": "PASS"
+  },
+  "ended_at_epoch": 1789397149.316781,
+  "final_submission_video": false,
+  "master_kind": "RAW_UNEDITED_QUALIFICATION_SEGMENT",
+  "media": {
+    "format": {
+      "duration": "19.400000"
+    },
+    "programs": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "height": 720,
+        "nb_frames": "485",
+        "r_frame_rate": "25/1",
+        "width": 1280
+      }
+    ]
+  },
+  "model_inference": false,
+  "no_owner_credentials_present_on_display": true,
+  "playwright_version": "1.62.0",
+  "process_a": 4520,
+  "process_b": 4737,
+  "run_id": "34857543370",
+  "sha256": {
+    "architecture.pdf": "c5c4448201d0fdb7508d74b48d0c6b7a0cc9f1426873dc3b06f9188eba0fe550",
+    "preview.png": "6d5fd610e722a88e73687d722b03446fb1022ac17a6958de1c3f533b058ebe5b",
+    "receipt.json": "4d9883532ab8713d932c90509d035fe562e4d650e6afcf28576a513677696ade",
+    "segment.mp4": "f52e4f96ba78681d36a3ad3ca968cf86f1890e504127eb594a699d2a97e3b5e5"
+  },
+  "source_commit": "46de154b4c1ca684a77b78f1218435757670395a",
+  "started_at_epoch": 1789397112.233379,
+  "state": "QUALIFIED",
+  "termination": {
+    "return_code": -9,
+    "signal": "SIGKILL"
+  },
+  "work_id": "DEMO-95b85b1e5d044d91ba161859039f94f0"
+}

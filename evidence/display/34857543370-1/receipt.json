@@ -1,0 +1,32 @@
+{
+  "cursor": 3,
+  "decision": {
+    "agent_may_auto_approve": false,
+    "decision_state": "HUMAN_REVIEW_REQUIRED",
+    "inspection": {
+      "missing": [],
+      "received_fields": [
+        "expected_quantity",
+        "observed_quantity",
+        "request_id"
+      ]
+    },
+    "reconciliation": {
+      "delta": -2,
+      "expected_quantity": 120,
+      "observed_quantity": 118,
+      "reconciled": false
+    }
+  },
+  "decision_sha256": "59673378550bccde49d2123ad3fa509e008ff9cf6daac9b209d827afad85aa2a",
+  "effect_counts": {
+    "inspect_request": 1,
+    "prepare_review_package": 1,
+    "reconcile_evidence": 1
+  },
+  "evidence_chain_valid": true,
+  "model_inference": false,
+  "scope": "Local synthetic deterministic workflow; hashes provide integrity, not third-party attestation.",
+  "state": "HUMAN_REVIEW",
+  "work_id": "DEMO-95b85b1e5d044d91ba161859039f94f0"
+}
