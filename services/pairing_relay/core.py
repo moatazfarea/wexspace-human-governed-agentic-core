@@ -148,10 +148,11 @@ class RendezvousStore:
 class PairingEnvelope:
     """Signed QR/link payload; no long-lived credential material."""
 
-    def __init__(self, signing_key: bytes):
+    def __init__(self, signing_key: bytes, *, clock: Callable[[], float] = time.time):
         if len(signing_key) < 32:
             raise ValueError("signing key must be at least 32 bytes")
         self._key = signing_key
+        self._clock = clock
 
     def encode(self, session: PairingSession, base_url: str) -> str:
         payload = {
@@ -164,3 +165,22 @@ class PairingEnvelope:
         body = _b64(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode())
         sig = _b64(hmac.new(self._key, body.encode(), hashlib.sha256).digest())
         return f"{base_url.rstrip('/')}/pair/{body}.{sig}"
+
+    def decode_and_verify(self, token: str) -> dict:
+        try:
+            body, sig = token.split(".", 1)
+        except ValueError as exc:
+            raise ValueError("PAIRING_ENVELOPE_INVALID") from exc
+        expected = _b64(hmac.new(self._key, body.encode(), hashlib.sha256).digest())
+        if not hmac.compare_digest(sig, expected):
+            raise ValueError("PAIRING_ENVELOPE_SIGNATURE_INVALID")
+        pad = "=" * ((4 - len(body) % 4) % 4)
+        try:
+            payload = json.loads(base64.urlsafe_b64decode((body + pad).encode("ascii")))
+        except Exception as exc:
+            raise ValueError("PAIRING_ENVELOPE_INVALID") from exc
+        if payload.get("aud") != "wexspace-device-pairing" or payload.get("v") != 1:
+            raise ValueError("PAIRING_ENVELOPE_INVALID")
+        if int(payload.get("exp", 0)) < int(self._clock()):
+            raise ValueError("PAIRING_ENVELOPE_EXPIRED")
+        return payload
