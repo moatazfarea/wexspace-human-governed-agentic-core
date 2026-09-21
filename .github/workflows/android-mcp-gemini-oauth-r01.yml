@@ -1,0 +1,210 @@
+name: Android MCP Gemini OAuth R01
+
+on:
+  push:
+    branches:
+      - wexspace/android-mcp-gemini-oauth-r01
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Patch, test, and build GMS debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout WEXSPACE scratch branch
+        uses: actions/checkout@v4
+
+      - name: Clone pinned upstream source
+        run: |
+          git clone --recurse-submodules https://github.com/danielealbano/android-remote-control-mcp.git android-mcp
+          cd android-mcp
+          git checkout 16f39717ce0969aa81a4ec132ba1cad861ba46cc
+          git submodule update --init --recursive
+
+      - name: Apply narrow Gemini OAuth redirect allowlist patch
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("android-mcp/app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/oauth/OAuthPolicy.kt")
+          s = p.read_text()
+
+          old = '''    /** ChatGPT also uses per-connector OAuth callback URLs under this exact host/path prefix. */
+              private const val CHATGPT_REDIRECT_HOST = "chatgpt.com"
+              private const val CHATGPT_REDIRECT_PATH_PREFIX = "/connector/oauth/"
+
+              /** Exact non-loopback redirect URIs accepted by the allowlist (add other hosted connectors here). */
+          '''.replace("              ", "")
+          new = '''    /** ChatGPT also uses per-connector OAuth callback URLs under this exact host/path prefix. */
+              private const val CHATGPT_REDIRECT_HOST = "chatgpt.com"
+              private const val CHATGPT_REDIRECT_PATH_PREFIX = "/connector/oauth/"
+
+              /** Gemini custom MCP callbacks use Google's account-linking redirect service. */
+              private val GEMINI_REDIRECT_HOSTS =
+                  setOf(
+                      "oauth-redirect-sandbox.googleusercontent.com",
+                      "oauth-redirect.googleusercontent.com",
+                  )
+              private const val GEMINI_REDIRECT_PATH_PREFIX = "/r/custom-mcp-"
+
+              /** Exact non-loopback redirect URIs accepted by the allowlist (add other hosted connectors here). */
+          '''.replace("              ", "")
+          if old not in s:
+              raise SystemExit("Expected OAuthPolicy constants block not found")
+          s = s.replace(old, new, 1)
+
+          old2 = '''        val isLoopback = parsed != null && parsed.scheme == "http" && host in LOOPBACK_HOSTS
+
+              return isChatGptConnectorCallback || isLoopback
+          '''.replace("              ", "")
+          new2 = '''        val isGeminiCustomMcpCallback =
+                  parsed != null &&
+                      parsed.scheme == "https" &&
+                      host in GEMINI_REDIRECT_HOSTS &&
+                      parsed.port == -1 &&
+                      parsed.rawUserInfo == null &&
+                      parsed.rawQuery == null &&
+                      parsed.rawFragment == null &&
+                      parsed.path?.startsWith(GEMINI_REDIRECT_PATH_PREFIX) == true &&
+                      parsed.path.length > GEMINI_REDIRECT_PATH_PREFIX.length
+              val isLoopback = parsed != null && parsed.scheme == "http" && host in LOOPBACK_HOSTS
+
+              return isChatGptConnectorCallback || isGeminiCustomMcpCallback || isLoopback
+          '''.replace("              ", "")
+          if old2 not in s:
+              raise SystemExit("Expected OAuthPolicy predicate block not found")
+          s = s.replace(old2, new2, 1)
+          p.write_text(s)
+
+          t = Path("android-mcp/app/src/test/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/oauth/OAuthPolicyTest.kt")
+          ts = t.read_text()
+
+          marker = '        assertTrue(OAuthPolicy.isAllowedRedirectUri("https://chatgpt.com/connector/oauth/abc123"))\n'
+          add = marker + '''        assertTrue(
+                  OAuthPolicy.isAllowedRedirectUri(
+                      "https://oauth-redirect-sandbox.googleusercontent.com/r/custom-mcp-11573300372293581638",
+                  ),
+              )
+              assertTrue(
+                  OAuthPolicy.isAllowedRedirectUri(
+                      "https://oauth-redirect.googleusercontent.com/r/custom-mcp-123456789",
+                  ),
+              )
+          '''.replace("              ", "")
+          if marker not in ts:
+              raise SystemExit("Expected OAuthPolicyTest allow marker not found")
+          ts = ts.replace(marker, add, 1)
+
+          marker2 = '        assertFalse(OAuthPolicy.isAllowedRedirectUri("http://chatgpt.com/connector/oauth/abc"))\n'
+          add2 = marker2 + '''        assertFalse(
+                  OAuthPolicy.isAllowedRedirectUri(
+                      "https://oauth-redirect-sandbox.googleusercontent.com.evil.example/r/custom-mcp-1",
+                  ),
+              )
+              assertFalse(
+                  OAuthPolicy.isAllowedRedirectUri(
+                      "https://oauth-redirect-sandbox.googleusercontent.com@evil.example/r/custom-mcp-1",
+                  ),
+              )
+              assertFalse(
+                  OAuthPolicy.isAllowedRedirectUri(
+                      "http://oauth-redirect-sandbox.googleusercontent.com/r/custom-mcp-1",
+                  ),
+              )
+              assertFalse(
+                  OAuthPolicy.isAllowedRedirectUri(
+                      "https://oauth-redirect-sandbox.googleusercontent.com/r/not-custom-mcp-1",
+                  ),
+              )
+              assertFalse(
+                  OAuthPolicy.isAllowedRedirectUri(
+                      "https://oauth-redirect-sandbox.googleusercontent.com/r/custom-mcp-",
+                  ),
+              )
+              assertFalse(
+                  OAuthPolicy.isAllowedRedirectUri(
+                      "https://oauth-redirect-sandbox.googleusercontent.com:444/r/custom-mcp-1",
+                  ),
+              )
+              assertFalse(
+                  OAuthPolicy.isAllowedRedirectUri(
+                      "https://oauth-redirect-sandbox.googleusercontent.com/r/custom-mcp-1?x=1",
+                  ),
+              )
+              assertFalse(
+                  OAuthPolicy.isAllowedRedirectUri(
+                      "https://oauth-redirect-sandbox.googleusercontent.com/r/custom-mcp-1#x",
+                  ),
+              )
+          '''.replace("              ", "")
+          if marker2 not in ts:
+              raise SystemExit("Expected OAuthPolicyTest reject marker not found")
+          ts = ts.replace(marker2, add2, 1)
+          t.write_text(ts)
+          PY
+
+          cd android-mcp
+          git diff --check
+          git diff -- app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/oauth/OAuthPolicy.kt app/src/test/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/oauth/OAuthPolicyTest.kt
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.6'
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,x86_64-linux-android
+
+      - name: Build cloudflared Android native
+        working-directory: android-mcp
+        run: make compile-cloudflared
+
+      - name: Build ngrok-java Android native
+        working-directory: android-mcp
+        env:
+          JAVA_11_HOME: ${{ env.JAVA_HOME }}
+          JAVA_17_HOME: ${{ env.JAVA_HOME }}
+        run: make compile-ngrok-native
+
+      - name: Run focused OAuth policy tests
+        working-directory: android-mcp
+        run: ./gradlew :app:testGmsDebugUnitTest --tests 'com.danielealbano.androidremotecontrolmcp.mcp.oauth.OAuthPolicyTest'
+
+      - name: Build patched GMS debug APK
+        working-directory: android-mcp
+        run: ./gradlew assembleGmsDebug
+
+      - name: Verify APK and hashes
+        working-directory: android-mcp
+        run: |
+          APK=app/build/outputs/apk/gms/debug/app-gms-debug.apk
+          test -f "$APK"
+          sha256sum "$APK" | tee ../WEXSPACE_ANDROID_MCP_GEMINI_OAUTH_R01_SHA256.txt
+          cp "$APK" ../android-remote-control-mcp-gemini-oauth-r01-gms-debug.apk
+          git diff > ../WEXSPACE_ANDROID_MCP_GEMINI_OAUTH_R01.patch
+
+      - name: Upload patched APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-mcp-gemini-oauth-r01
+          path: |
+            android-remote-control-mcp-gemini-oauth-r01-gms-debug.apk
+            WEXSPACE_ANDROID_MCP_GEMINI_OAUTH_R01_SHA256.txt
+            WEXSPACE_ANDROID_MCP_GEMINI_OAUTH_R01.patch
+          retention-days: 30
