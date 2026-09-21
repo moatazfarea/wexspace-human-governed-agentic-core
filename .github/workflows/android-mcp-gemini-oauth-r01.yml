@@ -13,7 +13,7 @@ jobs:
   build:
     name: Patch, test, and build GMS debug APK
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
 
     steps:
       - name: Checkout WEXSPACE scratch branch
@@ -31,19 +31,12 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
-          p = Path("android-mcp/app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/oauth/OAuthPolicy.kt")
-          s = p.read_text()
+          policy = Path("android-mcp/app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/oauth/OAuthPolicy.kt")
+          s = policy.read_text()
 
-          old = '''    /** ChatGPT also uses per-connector OAuth callback URLs under this exact host/path prefix. */
-              private const val CHATGPT_REDIRECT_HOST = "chatgpt.com"
-              private const val CHATGPT_REDIRECT_PATH_PREFIX = "/connector/oauth/"
-
-              /** Exact non-loopback redirect URIs accepted by the allowlist (add other hosted connectors here). */
-          '''.replace("              ", "")
-          new = '''    /** ChatGPT also uses per-connector OAuth callback URLs under this exact host/path prefix. */
-              private const val CHATGPT_REDIRECT_HOST = "chatgpt.com"
-              private const val CHATGPT_REDIRECT_PATH_PREFIX = "/connector/oauth/"
-
+          marker = '    private const val CHATGPT_REDIRECT_PATH_PREFIX = "/connector/oauth/"\n'
+          gemini_constants = '''
+          
               /** Gemini custom MCP callbacks use Google's account-linking redirect service. */
               private val GEMINI_REDIRECT_HOSTS =
                   setOf(
@@ -51,18 +44,13 @@ jobs:
                       "oauth-redirect.googleusercontent.com",
                   )
               private const val GEMINI_REDIRECT_PATH_PREFIX = "/r/custom-mcp-"
-
-              /** Exact non-loopback redirect URIs accepted by the allowlist (add other hosted connectors here). */
           '''.replace("              ", "")
-          if old not in s:
-              raise SystemExit("Expected OAuthPolicy constants block not found")
-          s = s.replace(old, new, 1)
+          if marker not in s:
+              raise SystemExit("RCS-002: CHATGPT redirect marker not found")
+          s = s.replace(marker, marker + gemini_constants, 1)
 
-          old2 = '''        val isLoopback = parsed != null && parsed.scheme == "http" && host in LOOPBACK_HOSTS
-
-              return isChatGptConnectorCallback || isLoopback
-          '''.replace("              ", "")
-          new2 = '''        val isGeminiCustomMcpCallback =
+          loopback = '        val isLoopback = parsed != null && parsed.scheme == "http" && host in LOOPBACK_HOSTS\n'
+          gemini_predicate = '''        val isGeminiCustomMcpCallback =
                   parsed != null &&
                       parsed.scheme == "https" &&
                       host in GEMINI_REDIRECT_HOSTS &&
@@ -72,20 +60,23 @@ jobs:
                       parsed.rawFragment == null &&
                       parsed.path?.startsWith(GEMINI_REDIRECT_PATH_PREFIX) == true &&
                       parsed.path.length > GEMINI_REDIRECT_PATH_PREFIX.length
-              val isLoopback = parsed != null && parsed.scheme == "http" && host in LOOPBACK_HOSTS
-
-              return isChatGptConnectorCallback || isGeminiCustomMcpCallback || isLoopback
           '''.replace("              ", "")
-          if old2 not in s:
-              raise SystemExit("Expected OAuthPolicy predicate block not found")
-          s = s.replace(old2, new2, 1)
-          p.write_text(s)
+          if loopback not in s:
+              raise SystemExit("RCS-002: loopback predicate marker not found")
+          s = s.replace(loopback, gemini_predicate + loopback, 1)
 
-          t = Path("android-mcp/app/src/test/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/oauth/OAuthPolicyTest.kt")
-          ts = t.read_text()
+          old_return = '        return isChatGptConnectorCallback || isLoopback\n'
+          new_return = '        return isChatGptConnectorCallback || isGeminiCustomMcpCallback || isLoopback\n'
+          if old_return not in s:
+              raise SystemExit("RCS-002: return predicate marker not found")
+          s = s.replace(old_return, new_return, 1)
+          policy.write_text(s)
 
-          marker = '        assertTrue(OAuthPolicy.isAllowedRedirectUri("https://chatgpt.com/connector/oauth/abc123"))\n'
-          add = marker + '''        assertTrue(
+          tests = Path("android-mcp/app/src/test/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/oauth/OAuthPolicyTest.kt")
+          ts = tests.read_text()
+
+          allow_marker = '        assertTrue(OAuthPolicy.isAllowedRedirectUri("https://chatgpt.com/connector/oauth/abc123"))\n'
+          allow_block = '''        assertTrue(
                   OAuthPolicy.isAllowedRedirectUri(
                       "https://oauth-redirect-sandbox.googleusercontent.com/r/custom-mcp-11573300372293581638",
                   ),
@@ -96,12 +87,12 @@ jobs:
                   ),
               )
           '''.replace("              ", "")
-          if marker not in ts:
-              raise SystemExit("Expected OAuthPolicyTest allow marker not found")
-          ts = ts.replace(marker, add, 1)
+          if allow_marker not in ts:
+              raise SystemExit("RCS-002: allow-test marker not found")
+          ts = ts.replace(allow_marker, allow_marker + allow_block, 1)
 
-          marker2 = '        assertFalse(OAuthPolicy.isAllowedRedirectUri("http://chatgpt.com/connector/oauth/abc"))\n'
-          add2 = marker2 + '''        assertFalse(
+          reject_marker = '        assertFalse(OAuthPolicy.isAllowedRedirectUri("http://chatgpt.com/connector/oauth/abc"))\n'
+          reject_block = '''        assertFalse(
                   OAuthPolicy.isAllowedRedirectUri(
                       "https://oauth-redirect-sandbox.googleusercontent.com.evil.example/r/custom-mcp-1",
                   ),
@@ -142,10 +133,10 @@ jobs:
                   ),
               )
           '''.replace("              ", "")
-          if marker2 not in ts:
-              raise SystemExit("Expected OAuthPolicyTest reject marker not found")
-          ts = ts.replace(marker2, add2, 1)
-          t.write_text(ts)
+          if reject_marker not in ts:
+              raise SystemExit("RCS-002: reject-test marker not found")
+          ts = ts.replace(reject_marker, reject_marker + reject_block, 1)
+          tests.write_text(ts)
           PY
 
           cd android-mcp
