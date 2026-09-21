@@ -1,0 +1,62 @@
+name: Android MCP WEXSPACE R02 Build
+
+on:
+  push:
+    branches:
+      - wexspace/unified-remote-fabric-r01
+    paths:
+      - scripts/patch_android_mcp_wexspace_r02.py
+      - .github/workflows/android-mcp-wexspace-r02.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout WEXSPACE candidate
+        uses: actions/checkout@v4
+
+      - name: Checkout upstream Android MCP
+        uses: actions/checkout@v4
+        with:
+          repository: danielealbano/android-remote-control-mcp
+          ref: 16f39717ce0969aa81a4ec132ba1cad861ba46cc
+          path: upstream
+          submodules: recursive
+
+      - name: Apply WEXSPACE OAuth + Cloudflare defaults
+        run: python scripts/patch_android_mcp_wexspace_r02.py
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Qualify OAuth policy and settings default
+        working-directory: upstream
+        run: |
+          ./gradlew :app:testGmsDebugUnitTest --tests '*OAuthPolicyTest' --tests '*SettingsRepositoryImplTest'
+
+      - name: Build GMS debug APK
+        working-directory: upstream
+        run: ./gradlew :app:assembleGmsDebug
+
+      - name: Collect and hash
+        run: |
+          mkdir -p dist
+          cp upstream/app/build/outputs/apk/gms/debug/app-gms-debug.apk dist/android-remote-control-mcp-wexspace-r02-gms-debug.apk
+          sha256sum dist/android-remote-control-mcp-wexspace-r02-gms-debug.apk | tee dist/SHA256SUMS.txt
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-remote-control-mcp-wexspace-r02
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
