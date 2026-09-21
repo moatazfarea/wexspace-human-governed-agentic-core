@@ -23,6 +23,6 @@ jobs:
       - name: Run remote-fabric tests
         env:
           PYTHONPATH: src
-        run: pytest -q tests/test_remote_fabric.py
+        run: pytest -q tests/test_remote_fabric.py tests/test_remote_app_surface.py
       - name: Compile module
-        run: python -m py_compile src/wexspace_human_governed_core/remote_fabric.py
+        run: python -m py_compile src/wexspace_human_governed_core/remote_fabric.py src/wexspace_human_governed_core/remote_app_surface.py
