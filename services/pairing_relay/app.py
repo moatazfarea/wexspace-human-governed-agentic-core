@@ -1,18 +1,21 @@
 from __future__ import annotations
 
 import io
+import json
 import os
 import secrets
+import uuid
 
 from fastapi import FastAPI, HTTPException, Request, Response
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 import qrcode
 
 from .core import PairingEnvelope, RendezvousStore
 
 
-app = FastAPI(title="WEXSPACE Pairing Relay", version="0.1.0")
+MCP_PROTOCOL_VERSION = "2025-03-26"
+app = FastAPI(title="WEXSPACE Pairing Relay", version="0.2.0")
 store = RendezvousStore()
 _signing_key = os.environ.get("WEXSPACE_PAIRING_SIGNING_KEY")
 if _signing_key:
@@ -40,7 +43,7 @@ class ConfirmPairing(BaseModel):
 
 @app.get("/healthz")
 def healthz() -> dict:
-    return {"status": "ok", "service": "wexspace-pairing-relay-r01"}
+    return {"status": "ok", "service": "wexspace-pairing-relay-r01", "version": "0.2.0"}
 
 
 @app.post("/v1/pairings")
@@ -51,7 +54,7 @@ def create_pairing(payload: CreatePairing, request: Request) -> dict:
     return {
         **store.public_view(session),
         "pairing_url": pairing_url,
-        # Returned once to the controller; never included in public status.
+        # Returned once to the browser/controller, never in public status/MCP results.
         "controller_nonce": session.controller_nonce,
     }
 
@@ -103,6 +106,27 @@ def pairing_qr(session_id: str, request: Request) -> Response:
     return Response(buf.getvalue(), media_type="image/png", headers={"Cache-Control": "no-store"})
 
 
+@app.get("/pair/{token}", response_class=HTMLResponse)
+def pairing_landing(token: str) -> str:
+    try:
+        payload = envelope.decode_and_verify(token)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    code = payload["code"]
+    deep_link = f"wexspace://pair/{token}"
+    return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pair with WEXSPACE</title><style>
+body{{font-family:system-ui;background:#0b0d10;color:#f4f7fb;margin:0}}main{{max-width:600px;margin:auto;padding:36px}}
+.card{{background:#151920;border:1px solid #29313d;border-radius:22px;padding:24px}}
+.code{{font-size:44px;letter-spacing:.18em;font-weight:800}}a{{display:inline-block;margin-top:18px;padding:14px 18px;border-radius:14px;background:white;color:#111;text-decoration:none}}
+small{{color:#aab5c2}}</style></head>
+<body><main><div class="card"><h1>Pair this device</h1><div class="code">{code}</div>
+<p>Open the WEXSPACE app on this device and enter the code, or use the button below once the WEXSPACE deep-link handler is installed.</p>
+<a href="{deep_link}">Open WEXSPACE</a><p><small>This pairing link is short-lived and signed.</small></p>
+</div></main></body></html>"""
+
+
 @app.get("/remote", response_class=HTMLResponse)
 def remote_page() -> str:
     return """<!doctype html>
@@ -112,24 +136,33 @@ def remote_page() -> str:
 <style>
 body{font-family:system-ui;margin:0;background:#0b0d10;color:#f4f7fb}main{max-width:760px;margin:auto;padding:32px}
 .card{background:#151920;border:1px solid #29313d;border-radius:22px;padding:24px;margin-top:24px}
-button{font:inherit;padding:14px 18px;border-radius:14px;border:0;cursor:pointer}
+button{font:inherit;padding:14px 18px;border-radius:14px;border:0;cursor:pointer;margin-right:8px}
 #code{font-size:42px;letter-spacing:.2em;font-weight:700}img{max-width:260px;background:white;padding:12px;border-radius:16px}
-small{color:#aab5c2}
+small{color:#aab5c2}.ok{background:#b7f7c0}.confirm{display:none;background:#ffe28a}
 </style></head>
 <body><main><h1>WEXSPACE Remote</h1>
-<p>Pair this browser with a WEXSPACE-enabled device. The code is short-lived and single-use.</p>
+<p>Pair this browser with a WEXSPACE-enabled device. Use the six-digit code or scan the QR from another device. On the same device, open the QR/link and then choose “Open WEXSPACE”.</p>
 <button id="create">Create pairing</button>
 <div class="card" id="card" hidden><div id="code"></div><p><img id="qr"></p>
+<button id="confirm" class="confirm">Confirm this device</button>
 <small id="status"></small></div>
 <script>
 let state=null;
 async function create(){
  const r=await fetch('/v1/pairings',{method:'POST',headers:{'content-type':'application/json'},body:'{}'});
  state=await r.json();
+ sessionStorage.setItem('wexspace_pair_nonce_'+state.session_id,state.controller_nonce);
+ delete state.controller_nonce;
  document.querySelector('#code').textContent=state.code;
  document.querySelector('#qr').src='/v1/pairings/'+state.session_id+'/qr.png';
  document.querySelector('#card').hidden=false;
+ document.querySelector('#confirm').style.display='none';
  poll();
+}
+async function confirmPair(){
+ const nonce=sessionStorage.getItem('wexspace_pair_nonce_'+state.session_id);
+ const r=await fetch('/v1/pairings/'+state.session_id+'/confirm',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({controller_nonce:nonce})});
+ if(r.ok){document.querySelector('#confirm').style.display='none';poll();}
 }
 async function poll(){
  if(!state)return;
@@ -137,7 +170,118 @@ async function poll(){
  if(!r.ok)return;
  const s=await r.json();
  document.querySelector('#status').textContent='Status: '+s.state+' · expires '+new Date(s.expires_at*1000).toLocaleTimeString();
+ if(s.state==='DEVICE_CLAIMED')document.querySelector('#confirm').style.display='inline-block';
+ if(s.state==='PAIRED'){document.querySelector('#confirm').style.display='none';document.querySelector('#create').className='ok';}
  if(s.state!=='PAIRED' && Date.now()/1000<s.expires_at)setTimeout(poll,1500);
 }
 document.querySelector('#create').onclick=create;
+document.querySelector('#confirm').onclick=confirmPair;
 </script></main></body></html>"""
+
+
+def _mcp_error(request_id, code: int, message: str) -> JSONResponse:
+    return JSONResponse({"jsonrpc": "2.0", "id": request_id, "error": {"code": code, "message": message}})
+
+
+@app.post("/mcp")
+async def mcp_endpoint(request: Request) -> Response:
+    try:
+        body = await request.json()
+    except Exception:
+        return _mcp_error(None, -32700, "Parse error")
+
+    if isinstance(body, list):
+        return _mcp_error(None, -32600, "Batch requests are not supported by this candidate")
+
+    request_id = body.get("id")
+    method = body.get("method")
+    params = body.get("params") or {}
+
+    if method == "initialize":
+        requested = params.get("protocolVersion") or MCP_PROTOCOL_VERSION
+        protocol = requested if requested in {MCP_PROTOCOL_VERSION, "2024-11-05"} else MCP_PROTOCOL_VERSION
+        return JSONResponse(
+            {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "protocolVersion": protocol,
+                    "capabilities": {"tools": {"listChanged": False}},
+                    "serverInfo": {"name": "wexspace-pairing-relay", "version": "0.2.0"},
+                    "instructions": "Pair owner-authorized devices using short-lived WEXSPACE codes/QR. No raw credentials are returned.",
+                },
+            },
+            headers={"Mcp-Session-Id": "stateless-" + uuid.uuid4().hex},
+        )
+
+    if method == "notifications/initialized":
+        return Response(status_code=202)
+
+    if method == "ping":
+        return JSONResponse({"jsonrpc": "2.0", "id": request_id, "result": {}})
+
+    if method == "tools/list":
+        tools = [
+            {
+                "name": "wexspace_pairing_create",
+                "description": "Create a short-lived owner pairing session and return a six-digit code plus signed pairing URL. No long-lived credential is returned.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {"ttl_seconds": {"type": "integer", "minimum": 30, "maximum": 600, "default": 180}},
+                    "additionalProperties": False,
+                },
+                "annotations": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": False},
+            },
+            {
+                "name": "wexspace_pairing_status",
+                "description": "Read the state of a WEXSPACE pairing session by session id.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {"session_id": {"type": "string"}},
+                    "required": ["session_id"],
+                    "additionalProperties": False,
+                },
+                "annotations": {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False},
+            },
+        ]
+        return JSONResponse({"jsonrpc": "2.0", "id": request_id, "result": {"tools": tools}})
+
+    if method == "tools/call":
+        name = params.get("name")
+        args = params.get("arguments") or {}
+        if name == "wexspace_pairing_create":
+            try:
+                session = store.create(ttl_seconds=int(args.get("ttl_seconds", 180)))
+            except (TypeError, ValueError, RuntimeError) as exc:
+                return _mcp_error(request_id, -32602, str(exc))
+            pairing_url = envelope.encode(session, str(request.base_url).rstrip("/"))
+            public = store.public_view(session)
+            public["pairing_url"] = pairing_url
+            return JSONResponse(
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {
+                        "content": [{"type": "text", "text": json.dumps(public, sort_keys=True)}],
+                        "structuredContent": public,
+                    },
+                }
+            )
+        if name == "wexspace_pairing_status":
+            try:
+                public = store.public_view(store.get(str(args["session_id"])))
+            except (KeyError, TypeError) as exc:
+                return _mcp_error(request_id, -32602, str(exc))
+            return JSONResponse(
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {
+                        "content": [{"type": "text", "text": json.dumps(public, sort_keys=True)}],
+                        "structuredContent": public,
+                    },
+                }
+            )
+        return _mcp_error(request_id, -32601, "Unknown tool")
+
+    return _mcp_error(request_id, -32601, "Method not found")
