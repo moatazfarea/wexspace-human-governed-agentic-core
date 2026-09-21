@@ -22,7 +22,7 @@ jobs:
         run: python -m pip install pytest
       - name: Run remote-fabric tests
         env:
-          PYTHONPATH: src
+          PYTHONPATH: src:.
         run: pytest -q tests/test_remote_fabric.py tests/test_remote_app_surface.py tests/test_pairing_relay.py
       - name: Compile module
         run: python -m py_compile src/wexspace_human_governed_core/remote_fabric.py src/wexspace_human_governed_core/remote_app_surface.py scripts/openai_remote_pairing_probe.py services/pairing_relay/core.py services/pairing_relay/app.py
