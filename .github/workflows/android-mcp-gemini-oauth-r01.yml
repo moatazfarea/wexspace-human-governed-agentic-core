@@ -43,7 +43,11 @@ jobs:
                       "oauth-redirect-sandbox.googleusercontent.com",
                       "oauth-redirect.googleusercontent.com",
                   )
-              private const val GEMINI_REDIRECT_PATH_PREFIX = "/r/custom-mcp-"
+              private val GEMINI_REDIRECT_PATH_PREFIXES =
+                  setOf(
+                      "/r/custom-mcp-",
+                      "/r/ground_custom-mcp-",
+                  )
           '''.replace("              ", "")
           if marker not in s:
               raise SystemExit("RCS-002: CHATGPT redirect marker not found")
@@ -58,8 +62,10 @@ jobs:
                       parsed.rawUserInfo == null &&
                       parsed.rawQuery == null &&
                       parsed.rawFragment == null &&
-                      parsed.path?.startsWith(GEMINI_REDIRECT_PATH_PREFIX) == true &&
-                      parsed.path.length > GEMINI_REDIRECT_PATH_PREFIX.length
+                      parsed.path != null &&
+                      GEMINI_REDIRECT_PATH_PREFIXES.any { prefix ->
+                          parsed.path.startsWith(prefix) && parsed.path.length > prefix.length
+                      }
           '''.replace("              ", "")
           if loopback not in s:
               raise SystemExit("RCS-002: loopback predicate marker not found")
@@ -86,6 +92,11 @@ jobs:
                       "https://oauth-redirect.googleusercontent.com/r/custom-mcp-123456789",
                   ),
               )
+              assertTrue(
+                  OAuthPolicy.isAllowedRedirectUri(
+                      "https://oauth-redirect-sandbox.googleusercontent.com/r/ground_custom-mcp-11573300372293581638",
+                  ),
+              )
           '''.replace("              ", "")
           if allow_marker not in ts:
               raise SystemExit("RCS-002: allow-test marker not found")
@@ -110,6 +121,11 @@ jobs:
               assertFalse(
                   OAuthPolicy.isAllowedRedirectUri(
                       "https://oauth-redirect-sandbox.googleusercontent.com/r/not-custom-mcp-1",
+                  ),
+              )
+              assertFalse(
+                  OAuthPolicy.isAllowedRedirectUri(
+                      "https://oauth-redirect-sandbox.googleusercontent.com/r/ground_not-custom-mcp-1",
                   ),
               )
               assertFalse(
